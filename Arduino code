@@ -1,173 +1,181 @@
-#include <Servo.h>
+// MAZE SOLVING ROBOT
+// Arduino UNO + 3 HC-SR04 + L298N
 
-// Motor driver pins - L298N
-#define ENA 5
-#define IN1 6
-#define IN2 7
-#define ENB 10
-#define IN3 8
-#define IN4 9
+#define L_TRIG 2
+#define L_ECHO 3
 
-// Flame sensors
-#define FLAME_LEFT   A0
-#define FLAME_CENTER A1
-#define FLAME_RIGHT  A2
+#define F_TRIG 4
+#define F_ECHO 5
 
-// Relay for water pump
-#define PUMP_RELAY 4
+#define R_TRIG 6
+#define R_ECHO 7
 
-// Buzzer
-#define BUZZER 3
+// L298N motor driver
+#define ENA 9
+#define IN1 8
+#define IN2 10
 
-// Servo
-#define SERVO_PIN 11
+#define IN3 11
+#define IN4 12
+#define ENB 13
 
-Servo nozzleServo;
+int motorSpeed = 150;
 
-// Adjust this value according to your flame sensors
-#define FLAME_LIMIT 500
+// Distance function
+long getDistance(int trigPin, int echoPin)
+{
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
 
-void setup() {
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 25000);
+
+  if (duration == 0)
+    return 200;
+
+  return duration * 0.034 / 2;
+}
+
+// Move forward
+void forward()
+{
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+
+  analogWrite(ENA, motorSpeed);
+  analogWrite(ENB, motorSpeed);
+}
+
+// Stop motors
+void stopRobot()
+{
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+
+  analogWrite(ENA, 0);
+  analogWrite(ENB, 0);
+}
+
+// Turn left
+void turnLeft()
+{
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+
+  analogWrite(ENA, motorSpeed);
+  analogWrite(ENB, motorSpeed);
+
+  delay(450);
+  stopRobot();
+}
+
+// Turn right
+void turnRight()
+{
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+
+  analogWrite(ENA, motorSpeed);
+  analogWrite(ENB, motorSpeed);
+
+  delay(450);
+  stopRobot();
+}
+
+// Turn around
+void turnBack()
+{
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+
+  analogWrite(ENA, motorSpeed);
+  analogWrite(ENB, motorSpeed);
+
+  delay(850);
+  stopRobot();
+}
+
+void setup()
+{
+  Serial.begin(9600);
+
+  pinMode(L_TRIG, OUTPUT);
+  pinMode(L_ECHO, INPUT);
+
+  pinMode(F_TRIG, OUTPUT);
+  pinMode(F_ECHO, INPUT);
+
+  pinMode(R_TRIG, OUTPUT);
+  pinMode(R_ECHO, INPUT);
+
   pinMode(ENA, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
 
-  pinMode(ENB, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
-
-  pinMode(PUMP_RELAY, OUTPUT);
-  pinMode(BUZZER, OUTPUT);
-
-  digitalWrite(PUMP_RELAY, HIGH);  // Pump OFF for active-low relay
-  digitalWrite(BUZZER, LOW);
-
-  nozzleServo.attach(SERVO_PIN);
-  nozzleServo.write(90);
-
-  Serial.begin(9600);
+  pinMode(ENB, OUTPUT);
 
   stopRobot();
+
+  Serial.println("Maze Solving Robot Started");
 }
 
-void loop() {
-
-  int left = analogRead(FLAME_LEFT);
-  int center = analogRead(FLAME_CENTER);
-  int right = analogRead(FLAME_RIGHT);
+void loop()
+{
+  long leftDist = getDistance(L_TRIG, L_ECHO);
+  long frontDist = getDistance(F_TRIG, F_ECHO);
+  long rightDist = getDistance(R_TRIG, R_ECHO);
 
   Serial.print("Left: ");
-  Serial.print(left);
-  Serial.print(" Center: ");
-  Serial.print(center);
-  Serial.print(" Right: ");
-  Serial.println(right);
+  Serial.print(leftDist);
+  Serial.print(" cm | Front: ");
+  Serial.print(frontDist);
+  Serial.print(" cm | Right: ");
+  Serial.print(rightDist);
+  Serial.println(" cm");
 
-  // Flame sensor usually gives LOWER value when flame is detected
-  bool leftFire   = left < FLAME_LIMIT;
-  bool centerFire = center < FLAME_LIMIT;
-  bool rightFire  = right < FLAME_LIMIT;
+  // Left-hand wall following algorithm
 
-  // No fire detected
-  if (!leftFire && !centerFire && !rightFire) {
-    stopRobot();
-    digitalWrite(PUMP_RELAY, HIGH);
-    digitalWrite(BUZZER, LOW);
-  }
-
-  // Fire detected in center
-  else if (centerFire) {
-    stopRobot();
-    digitalWrite(BUZZER, HIGH);
-
-    // Start water pump
-    digitalWrite(PUMP_RELAY, LOW);
-
-    // Sweep water nozzle
-    for (int angle = 60; angle <= 120; angle += 5) {
-      nozzleServo.write(angle);
-      delay(100);
-    }
-
-    for (int angle = 120; angle >= 60; angle -= 5) {
-      nozzleServo.write(angle);
-      delay(100);
-    }
-
-    digitalWrite(PUMP_RELAY, HIGH);
-    digitalWrite(BUZZER, LOW);
-  }
-
-  // Fire detected on left
-  else if (leftFire) {
+  if (leftDist > 20)
+  {
+    Serial.println("Path available on LEFT");
     turnLeft();
-    delay(250);
-    stopRobot();
   }
-
-  // Fire detected on right
-  else if (rightFire) {
+  else if (frontDist > 20)
+  {
+    Serial.println("Moving FORWARD");
+    forward();
+    delay(200);
+  }
+  else if (rightDist > 20)
+  {
+    Serial.println("Path available on RIGHT");
     turnRight();
-    delay(250);
-    stopRobot();
+  }
+  else
+  {
+    Serial.println("Dead End - Turning BACK");
+    turnBack();
   }
 
   delay(100);
-}
-
-// ---------------- MOTOR FUNCTIONS ----------------
-
-void forward() {
-  analogWrite(ENA, 180);
-  analogWrite(ENB, 180);
-
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-}
-
-void backward() {
-  analogWrite(ENA, 180);
-  analogWrite(ENB, 180);
-
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-}
-
-void turnLeft() {
-  analogWrite(ENA, 170);
-  analogWrite(ENB, 170);
-
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-}
-
-void turnRight() {
-  analogWrite(ENA, 170);
-  analogWrite(ENB, 170);
-
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-}
-
-void stopRobot() {
-  analogWrite(ENA, 0);
-  analogWrite(ENB, 0);
-
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
 }
