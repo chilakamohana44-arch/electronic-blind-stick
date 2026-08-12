@@ -1,0 +1,173 @@
+#include <Servo.h>
+
+// Motor driver pins - L298N
+#define ENA 5
+#define IN1 6
+#define IN2 7
+#define ENB 10
+#define IN3 8
+#define IN4 9
+
+// Flame sensors
+#define FLAME_LEFT   A0
+#define FLAME_CENTER A1
+#define FLAME_RIGHT  A2
+
+// Relay for water pump
+#define PUMP_RELAY 4
+
+// Buzzer
+#define BUZZER 3
+
+// Servo
+#define SERVO_PIN 11
+
+Servo nozzleServo;
+
+// Adjust this value according to your flame sensors
+#define FLAME_LIMIT 500
+
+void setup() {
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+
+  pinMode(ENB, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  pinMode(PUMP_RELAY, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
+
+  digitalWrite(PUMP_RELAY, HIGH);  // Pump OFF for active-low relay
+  digitalWrite(BUZZER, LOW);
+
+  nozzleServo.attach(SERVO_PIN);
+  nozzleServo.write(90);
+
+  Serial.begin(9600);
+
+  stopRobot();
+}
+
+void loop() {
+
+  int left = analogRead(FLAME_LEFT);
+  int center = analogRead(FLAME_CENTER);
+  int right = analogRead(FLAME_RIGHT);
+
+  Serial.print("Left: ");
+  Serial.print(left);
+  Serial.print(" Center: ");
+  Serial.print(center);
+  Serial.print(" Right: ");
+  Serial.println(right);
+
+  // Flame sensor usually gives LOWER value when flame is detected
+  bool leftFire   = left < FLAME_LIMIT;
+  bool centerFire = center < FLAME_LIMIT;
+  bool rightFire  = right < FLAME_LIMIT;
+
+  // No fire detected
+  if (!leftFire && !centerFire && !rightFire) {
+    stopRobot();
+    digitalWrite(PUMP_RELAY, HIGH);
+    digitalWrite(BUZZER, LOW);
+  }
+
+  // Fire detected in center
+  else if (centerFire) {
+    stopRobot();
+    digitalWrite(BUZZER, HIGH);
+
+    // Start water pump
+    digitalWrite(PUMP_RELAY, LOW);
+
+    // Sweep water nozzle
+    for (int angle = 60; angle <= 120; angle += 5) {
+      nozzleServo.write(angle);
+      delay(100);
+    }
+
+    for (int angle = 120; angle >= 60; angle -= 5) {
+      nozzleServo.write(angle);
+      delay(100);
+    }
+
+    digitalWrite(PUMP_RELAY, HIGH);
+    digitalWrite(BUZZER, LOW);
+  }
+
+  // Fire detected on left
+  else if (leftFire) {
+    turnLeft();
+    delay(250);
+    stopRobot();
+  }
+
+  // Fire detected on right
+  else if (rightFire) {
+    turnRight();
+    delay(250);
+    stopRobot();
+  }
+
+  delay(100);
+}
+
+// ---------------- MOTOR FUNCTIONS ----------------
+
+void forward() {
+  analogWrite(ENA, 180);
+  analogWrite(ENB, 180);
+
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+void backward() {
+  analogWrite(ENA, 180);
+  analogWrite(ENB, 180);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+void turnLeft() {
+  analogWrite(ENA, 170);
+  analogWrite(ENB, 170);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+void turnRight() {
+  analogWrite(ENA, 170);
+  analogWrite(ENB, 170);
+
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+void stopRobot() {
+  analogWrite(ENA, 0);
+  analogWrite(ENB, 0);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
