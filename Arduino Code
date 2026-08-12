@@ -1,0 +1,140 @@
+#include <LiquidCrystal.h>
+
+// LCD: RS, E, D4, D5, D6, D7
+LiquidCrystal lcd(7, 6, 5, 4, 3, 2);
+
+// Push buttons
+const int voteA = 8;
+const int voteB = 9;
+const int voteC = 10;
+const int resultButton = 11;
+
+// LEDs
+const int ledA = 12;
+const int ledB = 13;
+const int ledC = A0;
+
+// Vote counters
+int countA = 0;
+int countB = 0;
+int countC = 0;
+
+void setup() {
+  lcd.begin(16, 2);
+
+  pinMode(voteA, INPUT_PULLUP);
+  pinMode(voteB, INPUT_PULLUP);
+  pinMode(voteC, INPUT_PULLUP);
+  pinMode(resultButton, INPUT_PULLUP);
+
+  pinMode(ledA, OUTPUT);
+  pinMode(ledB, OUTPUT);
+  pinMode(ledC, OUTPUT);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Electronic EVM");
+  lcd.setCursor(0, 1);
+  lcd.print("System Ready");
+
+  delay(2000);
+  showVotingScreen();
+}
+
+void loop() {
+
+  // Candidate A
+  if (digitalRead(voteA) == LOW) {
+    countA++;
+    digitalWrite(ledA, HIGH);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Vote: Candidate A");
+    lcd.setCursor(0, 1);
+    lcd.print("Vote Recorded");
+
+    delay(1000);
+    digitalWrite(ledA, LOW);
+    showVotingScreen();
+  }
+
+  // Candidate B
+  if (digitalRead(voteB) == LOW) {
+    countB++;
+    digitalWrite(ledB, HIGH);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Vote: Candidate B");
+    lcd.setCursor(0, 1);
+    lcd.print("Vote Recorded");
+
+    delay(1000);
+    digitalWrite(ledB, LOW);
+    showVotingScreen();
+  }
+
+  // Candidate C
+  if (digitalRead(voteC) == LOW) {
+    countC++;
+    digitalWrite(ledC, HIGH);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Vote: Candidate C");
+    lcd.setCursor(0, 1);
+    lcd.print("Vote Recorded");
+
+    delay(1000);
+    digitalWrite(ledC, LOW);
+    showVotingScreen();
+  }
+
+  // Display result
+  if (digitalRead(resultButton) == LOW) {
+    displayResults();
+    delay(1000);
+    showVotingScreen();
+  }
+}
+
+void showVotingScreen() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("A  B  C = Vote");
+  lcd.setCursor(0, 1);
+  lcd.print("D = Result");
+}
+
+void displayResults() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("A:");
+  lcd.print(countA);
+  lcd.print(" B:");
+  lcd.print(countB);
+
+  lcd.setCursor(0, 1);
+  lcd.print("C:");
+  lcd.print(countC);
+
+  delay(2000);
+
+  lcd.clear();
+
+  if (countA > countB && countA > countC) {
+    lcd.print("Winner: A");
+  }
+  else if (countB > countA && countB > countC) {
+    lcd.print("Winner: B");
+  }
+  else if (countC > countA && countC > countB) {
+    lcd.print("Winner: C");
+  }
+  else {
+    lcd.print("Result: Tie");
+  }
+
+  delay(3000);
+}
